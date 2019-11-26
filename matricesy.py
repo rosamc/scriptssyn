@@ -80,7 +80,7 @@ def get_parameters_TF_v1(pars,indicesbinding=None,indicesP=None,indicesaf=None,T
     #print(parsP,parsbinding)
     return [parsP,parsbinding]
 
-def get_m_model(pars,funcss=None,funcgetpars=None,argsgetpars=None,nTFs=6,naf=3,indicesP=None,**kwargs):
+def get_m_model(pars,funcss=None,funcgetpars=None,nTFs=6,naf=3,indicesP=None,**kwargs):
     """Return the matrix of foldchanges from the model. 
     Pars are the parameters to be optimized.
     funcss is the function to get the ss from parameters.
