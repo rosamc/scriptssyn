@@ -25,24 +25,24 @@ def get_exp_matrix(df,TFnames,affinities,matnames=False):
                     vals=df[(df['activator1']==TF1)&(df['activator2']==TF2)&(df['affinity1']==af1)&(df['affinity2']==af2)][cGFP]
                     #print(TF1, af1, TF2, af2, vals.values)
                     avGFP=np.nanmean(vals.values)
-                    mat_fc[3*n1+n1_+1,3*n2+n2_]=avGFP
+                    mat_fc[naf*n1+n1_+1,naf*n2+n2_]=avGFP
                     if matnames:
-                        mat_names[3*n1+n1_+1,3*n2+n2_]=names_short[n2]+'('+affinities_short[n2_]+')\n'+names_short[n1]+'('+affinities_short[n1_]+')'
+                        mat_names[naf*n1+n1_+1,naf*n2+n2_]=names_short[n2]+'('+affinities_short[n2_]+')\n'+names_short[n1]+'('+affinities_short[n1_]+')'
     for n1 in range(nTFs):
         TF1=TFnames[n1]
         for n1_ in range(naf):
             af1=affinities[n1_]
             vals=df[(df['activator1']==TF1)&(df['activator2']=='-')&(df['affinity1']==af1)][cGFP]
-            mat_fc[0,3*n1+n1_]=np.nanmean(vals.values)
+            mat_fc[0,naf*n1+n1_]=np.nanmean(vals.values)
             if matnames:
-                mat_names[0,3*n1+n1_]=names_short[n1]+' '+affinities_short[n1_]
+                mat_names[0,naf*n1+n1_]=names_short[n1]+' '+affinities_short[n1_]
             #print(TF1,af1,vals)
     if matnames:
         return [mat_fc,mat_names]
     else:
         return mat_fc
 
-def get_parameters_TF_v1(pars,indicesbinding=None,indicesP=None,indicesaf=None,TFidx=None,afidx=None):
+def get_parameters_TF_v1(pars,indicesbinding=None,indicesP=None,indicesaf=None,TFidx=None,afidx=None,fixedpars=None):
     """pars is the array of parameters to be optimized.
     indicesbinding is a list of 2 arrays: one with the indices for kbXa, kbXi, kbXn, and the other with the indices for kuXa, kuXi, kuXn
     indicesP is a list of arrays for each of the possible TFs. Each array has the indices for ktia, ktan, ktin, ktni.
@@ -64,7 +64,13 @@ def get_parameters_TF_v1(pars,indicesbinding=None,indicesP=None,indicesaf=None,T
             factor=pars[ifcb[0]]*pars[ifcb[1]] #the factor for 5X is multiplied by another factor >1, so that for sure it will be greater 
     else:
         factor=1
-    parsbinding[::2]=pars[idxsb]/factor #factor is >=1 so reduced binding with mutation
+    if fixedpars is None:
+        parsbinding[::2]=pars[idxsb]/factor #factor is >=1 so reduced binding with mutation
+    else:
+        #if 'kb' in fixedpars:
+        parsbinding[::2]=fixedpars[idxsb]/factor
+        #else:
+        #    parsbinding[::2]=pars[idxsb]/factor
     if afidx>0 and ifcu[0] is not None:
         if afidx==1:
             
@@ -73,34 +79,58 @@ def get_parameters_TF_v1(pars,indicesbinding=None,indicesP=None,indicesaf=None,T
             factor=pars[ifcu[0]]*pars[ifcu[1]]
     else:
         factor=1
-    parsbinding[1::2]=pars[idxsu]*factor #greater unbinding than WT if factor > 1
     
+    if fixedpars is None:
+        parsbinding[1::2]=pars[idxsu]*factor #greater unbinding than WT if factor > 1
+    else:
+        #if 'ku' in fixedpars:
+        parsbinding[1::2]=fixedpars[idxsu]*factor
+        #else:
+        #    parsbinding[1::2]=pars[idxsu]*factor
     idxsP=indicesP[TFidx+1] #TFidx 0 is basal, so actual TFs start after that
-    parsP=pars[idxsP]
+    if fixedpars is None:
+        parsP=pars[idxsP]
+    else:
+        parsP=fixedpars[idxsP]
     #print(parsP,parsbinding)
     return [parsP,parsbinding]
 
-def get_m_model(pars,funcss=None,funcgetpars=None,nTFs=6,naf=3,indicesP=None,**kwargs):
+def get_m_model(pars,fixedpars=None,funcss=None,funcgetpars=None,nTFs=6,affinities=['WT','5X','7X'],indicesP=None,**kwargs):
     """Return the matrix of foldchanges from the model. 
     Pars are the parameters to be optimized.
     funcss is the function to get the ss from parameters.
     kwargs: indicesP, indicesaf,indicesbinding
+    fixedpars: array of parameter values not to explore
     """
     
     array1=np.array([1])
     array0=np.array([0])
-    mat=np.zeros((naf*nTFs+1,naf*nTFs))
-    pars_Pbasal=pars[indicesP[0]]
+    
+    if fixedpars is None:
+        pars_Pbasal=pars[indicesP[0]]
+    else: #assume all parameters are fixed except those for the factors of the mutations
+        pars_Pbasal=fixedpars[indicesP[0]]
+    
     parset0=np.hstack((pars_Pbasal,pars_Pbasal,pars_Pbasal,np.ones(6),np.ones(6))) #need ones for binding and unbinding even if it does nothin
     ss0=funcss(parset0,array0,0)
     #print('ss0',ss0)
+    naf=len(affinities)
+
+    if not 'WT' in affinities:
+        nafc=np.arange(naf)+1 #the first affinity is already a mutant one. 
+    else:
+        nafc=np.arange(naf)
+
+
+    mat=np.zeros((naf*nTFs+1,naf*nTFs))
+
     for n1 in range(nTFs):
         for n1_ in range(naf):
-            kt1,b1=funcgetpars(pars,indicesP=indicesP,TFidx=n1,afidx=n1_,**kwargs)
+            kt1,b1=funcgetpars(pars,indicesP=indicesP,fixedpars=fixedpars,TFidx=n1,afidx=nafc[n1_],**kwargs)
             
             for n2 in range(n1,nTFs):
                 for n2_ in range(naf):
-                    kt2,b2=funcgetpars(pars,indicesP=indicesP,TFidx=n2,afidx=n2,**kwargs)
+                    kt2,b2=funcgetpars(pars,indicesP=indicesP,TFidx=n2,afidx=nafc[n2_],**kwargs)
                     parset=np.hstack((pars_Pbasal,kt1,kt2,b1,b2))
                     ss=funcss(parset,array1,1)
                     mat[naf*n1+n1_+1,naf*n2+n2_]=ss/ss0
@@ -121,7 +151,7 @@ def get_m_model(pars,funcss=None,funcgetpars=None,nTFs=6,naf=3,indicesP=None,**k
         
     for n1 in range(nTFs):
         for n1_ in range(naf):
-            kt1,b1=funcgetpars(pars,indicesP=indicesP,TFidx=n1,afidx=n1_,**kwargs)
+            kt1,b1=funcgetpars(pars,indicesP=indicesP,fixedpars=fixedpars,TFidx=n1,afidx=nafc[n1_],**kwargs)
             parset=np.hstack((pars_Pbasal,kt1,kt1,b1,b1))
             
             ss=funcss(parset,array0,1)
@@ -129,3 +159,4 @@ def get_m_model(pars,funcss=None,funcgetpars=None,nTFs=6,naf=3,indicesP=None,**k
             mat[0,naf*n1+n1_]=ss/ss0
                                  
     return mat
+
