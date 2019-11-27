@@ -130,7 +130,7 @@ def get_m_model(pars,fixedpars=None,funcss=None,funcgetpars=None,nTFs=6,affiniti
             
             for n2 in range(n1,nTFs):
                 for n2_ in range(naf):
-                    kt2,b2=funcgetpars(pars,indicesP=indicesP,TFidx=n2,afidx=nafc[n2_],**kwargs)
+                    kt2,b2=funcgetpars(pars,indicesP=indicesP,fixedpars=fixedpars,TFidx=n2,afidx=nafc[n2_],**kwargs)
                     parset=np.hstack((pars_Pbasal,kt1,kt2,b1,b2))
                     ss=funcss(parset,array1,1)
                     mat[naf*n1+n1_+1,naf*n2+n2_]=ss/ss0
