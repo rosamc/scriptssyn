@@ -160,3 +160,20 @@ def get_m_model(pars,fixedpars=None,funcss=None,funcgetpars=None,nTFs=6,affiniti
                                  
     return mat
 
+def make_comparison_matrix(mat1,mat2,f=10):
+    rows=len(mat1)
+    cols=len(mat1[0])
+    newr=f*rows
+    newcols=f*cols
+    newm=np.zeros((newr,newcols))
+    for r in range(rows):
+        for c in range(cols):
+            val1=mat1[r,c]
+            val2=mat2[r,c]
+            newcell=newm[f*r:f*r+f,f*c:f*c+f]
+            for r_ in range(f):
+                for c_ in range(r_,f):
+                    newcell[r_,c_]=val1
+                for c_ in range(0,r_):
+                    newcell[r_,c_]=val2
+    return newm
