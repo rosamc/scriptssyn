@@ -27,7 +27,7 @@ def get_exp_matrix(df,TFnames,affinities,matnames=False):
                     avGFP=np.nanmean(vals.values)
                     mat_fc[naf*n1+n1_+1,naf*n2+n2_]=avGFP
                     if matnames:
-                        mat_names[naf*n1+n1_+1,naf*n2+n2_]=names_short[n2]+'('+affinities_short[n2_]+')\n'+names_short[n1]+'('+affinities_short[n1_]+')'
+                        mat_names[naf*n1+n1_+1,naf*n2+n2_]=names_short[n2]+affinities_short[n2_]+'\n'+names_short[n1]+affinities_short[n1_]
     for n1 in range(nTFs):
         TF1=TFnames[n1]
         for n1_ in range(naf):
