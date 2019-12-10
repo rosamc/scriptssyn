@@ -22,12 +22,26 @@ def get_exp_matrix(df,TFnames,affinities,matnames=False):
                 TF2=TFnames[n2]
                 for n2_ in range(naf):
                     af2=affinities[n2_]
-                    vals=df[(df['activator1']==TF1)&(df['activator2']==TF2)&(df['affinity1']==af1)&(df['affinity2']==af2)][cGFP]
-                    #print(TF1, af1, TF2, af2, vals.values)
-                    avGFP=np.nanmean(vals.values)
-                    mat_fc[naf*n1+n1_+1,naf*n2+n2_]=avGFP
-                    if matnames:
-                        mat_names[naf*n1+n1_+1,naf*n2+n2_]=names_short[n2]+affinities_short[n2_]+'\n'+names_short[n1]+affinities_short[n1_]
+                    if n1!=n2 or (n1==n2 and n1_==n2_):
+                        vals=df[(df['activator1']==TF1)&(df['activator2']==TF2)&(df['affinity1']==af1)&(df['affinity2']==af2)][cGFP]
+                        #print(TF1, af1, TF2, af2, vals.values)
+                        avGFP=np.nanmean(vals.values)
+                        mat_fc[naf*n1+n1_+1,naf*n2+n2_]=avGFP
+                        if matnames:
+                            mat_names[naf*n1+n1_+1,naf*n2+n2_]=names_short[n2]+affinities_short[n2_]+'\n'+names_short[n1]+affinities_short[n1_]
+                    else: #for the cases where the two TFs are the same, but affinities are different, there are two different entries in the table. Take the average, and only when n2_>n1_:
+                        if n2_>n1_: 
+                            vals1=df[(df['activator1']==TF1)&(df['activator2']==TF2)&(df['affinity1']==af1)&(df['affinity2']==af2)][cGFP]
+                            #print(TF1, af1, TF2, af2, vals.values)
+                            avGFP1=np.nanmean(vals1.values)
+                            vals2=df[(df['activator1']==TF1)&(df['activator2']==TF2)&(df['affinity1']==af2)&(df['affinity2']==af1)][cGFP]
+                            #print(TF1, af1, TF2, af2, vals.values)
+                            avGFP2=np.nanmean(vals2.values)
+                            mat_fc[naf*n1+n1_+1,naf*n2+n2_]=(avGFP1+avGFP2)/2
+                            if matnames:
+                                mat_names[naf*n1+n1_+1,naf*n2+n2_]=names_short[n2]+affinities_short[n2_]+'\n'+names_short[n1]+affinities_short[n1_]
+                                #print(mat_names[naf*n1+n1_+1,naf*n2+n2_],avGFP1,avGFP2,mat_fc[naf*n1+n1_+1,naf*n2+n2_])
+
     for n1 in range(nTFs):
         TF1=TFnames[n1]
         for n1_ in range(naf):
@@ -130,10 +144,11 @@ def get_m_model(pars,fixedpars=None,funcss=None,funcgetpars=None,nTFs=6,affiniti
             
             for n2 in range(n1,nTFs):
                 for n2_ in range(naf):
-                    kt2,b2=funcgetpars(pars,indicesP=indicesP,fixedpars=fixedpars,TFidx=n2,afidx=nafc[n2_],**kwargs)
-                    parset=np.hstack((pars_Pbasal,kt1,kt2,b1,b2))
-                    ss=funcss(parset,array1,1)
-                    mat[naf*n1+n1_+1,naf*n2+n2_]=ss/ss0
+                    if not (n1==n2 and n2_<n1_):
+                        kt2,b2=funcgetpars(pars,indicesP=indicesP,fixedpars=fixedpars,TFidx=n2,afidx=nafc[n2_],**kwargs)
+                        parset=np.hstack((pars_Pbasal,kt1,kt2,b1,b2))
+                        ss=funcss(parset,array1,1)
+                        mat[naf*n1+n1_+1,naf*n2+n2_]=ss/ss0
                     
                     #print(parset)
                     #if False:#notice that for this to work names_short has to be defined
