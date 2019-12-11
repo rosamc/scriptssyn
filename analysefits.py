@@ -116,3 +116,13 @@ def plot_fitresult(mat_fc,parset,mat_names,cmap1=plt.cm.BuGn,cmap2=plt.cm.Blues,
     else:
         plt.tight_layout()
         plt.show()
+
+def plot_comparison_lines(exp_,model_,labels):
+    fig,ax=plt.subplots(1,1,figsize=(18,4))
+    ax.plot(range(len(exp_)),exp_,color='r',marker='o',label='exp')
+    ax.plot(range(len(model_)),model_,color='k',marker='o',label='model')
+    ax.set_xticks(range(len(model_)))
+    ax.set_xticklabels(labels,rotation='90')
+    ax.set_ylabel('fold change')
+    ax.legend()
+    plt.show()
