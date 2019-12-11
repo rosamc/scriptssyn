@@ -22,26 +22,41 @@ def make_comparison_matrix(mat1,mat2,f=10):
     return newm
 
 
-def get_results(fldr,yexp,njobs=0,costf=None,kwargs=None,basename='out'):
+def get_results(fldr,yexp,njobs=0,costf=None,kwargs=None,basename='out',jid=None):
     parsets_=[]
     costs_=[]
     Ts_=[] 
     stepsizes_=[]
     seeds_=[]
-    for i in range(njobs):
-        fname=os.path.join(fldr,'%s_%d.out'%(basename,i))
-        if os.path.isfile(fname):
-            outf=open(fname)
-            l1,l2=outf.readlines()
-            l1=l1.strip().replace('#','')
-            T,stepsize,seed=l1.split(',')
-            parset=np.array(list(map(float,l2.strip().strip(',').split(','))))
-            c=costf(parset,yexp,kwargs)
-            costs_.append(c)
-            parsets_.append(parset)
-            Ts_.append(float(T))
-            stepsizes_.append(float(stepsize))
-            seeds_.append(int(seed))
+    for i in range(1,njobs+1):
+        success=False
+        if jid is not None:
+            outname=os.path.join(os.path.split(fldr)[0],jid+'_%d.out'%i)
+            for line in open(outname,'r').readlines():
+                if 'success: True' in line:
+                    #print(line)
+                    success=True
+        else:
+            success=True
+
+        if success:
+
+            fname=os.path.join(fldr,'%s_%d.out'%(basename,i))
+            if os.path.isfile(fname):
+                outf=open(fname)
+                lines=outf.readlines()
+                if len(lines)>1:
+                    l1=lines[0]
+                    l2=lines[1]
+                    l1=l1.strip().replace('#','')
+                    T,stepsize,seed=l1.split(',')
+                    parset=np.array(list(map(float,l2.strip().strip(',').split(','))))
+                    c=costf(parset,yexp,kwargs)
+                    costs_.append(c)
+                    parsets_.append(parset)
+                    Ts_.append(float(T))
+                    stepsizes_.append(float(stepsize))
+                    seeds_.append(int(seed))
     stepsizes_=np.array(stepsizes_)
     seeds_=np.array(seeds_)
     Ts_=np.array(Ts_)
