@@ -23,9 +23,20 @@ def get_exp_matrix(df,TFnames,affinities,matnames=False):
                 for n2_ in range(naf):
                     af2=affinities[n2_]
                     if n1!=n2 or (n1==n2 and n1_==n2_):
-                        vals=df[(df['activator1']==TF1)&(df['activator2']==TF2)&(df['affinity1']==af1)&(df['affinity2']==af2)][cGFP]
-                        #print(TF1, af1, TF2, af2, vals.values)
-                        avGFP=np.nanmean(vals.values)
+                        vals1=df[(df['activator1']==TF1)&(df['activator2']==TF2)&(df['affinity1']==af1)&(df['affinity2']==af2)][cGFP]
+                        vals1=vals1.values
+
+                        vals2=df[(df['activator1']==TF2)&(df['activator2']==TF1)&(df['affinity1']==af2)&(df['affinity2']==af1)][cGFP]
+                        vals2=vals2.values
+
+                        if len(vals1)>0:
+                            vals=vals1
+                        else:
+                            vals=vals2
+
+                        #print(TF1, af1, TF2, af2, vals2.values)
+
+                        avGFP=np.nanmean(vals)
                         #print(TF1,af1,TF2,af2,vals.values)
                         mat_fc[naf*n1+n1_+1,naf*n2+n2_]=avGFP
                         if matnames:
