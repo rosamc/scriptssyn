@@ -4,11 +4,18 @@ import re
 
 parenthesis=re.compile(r'(\(.*\))')
 
-def get_exp_matrix(df,TFnames,affinities,matnames=False):
+def get_exp_matrix(df,TFnames,affinities,matnames=False,min_=False,max_=False,std=False):
     cGFP=['GFPfa1','GFPfa2','GFPfa3']
     naf=len(affinities)
     nTFs=len(TFnames)
     mat_fc=np.zeros((naf*nTFs+1,naf*nTFs)) #additional row on top is to compare to nothing on TF2
+    if min_:
+    	mat_fcmin=np.zeros_like(mat_fc)
+    if max_:
+    	mat_fcmax=np.zeros_like(mat_fc)
+    if std:
+    	mat_fcstd=np.zeros_like(mat_fc)
+
     if matnames:
         names_short=[x[0] if x!='HSF1m' else x[-1] for x in TFnames]
         affinities_short=[parenthesis.findall(x)[0] for x in affinities]
@@ -38,20 +45,38 @@ def get_exp_matrix(df,TFnames,affinities,matnames=False):
 
                         avGFP=np.nanmean(vals)
                         #print(TF1,af1,TF2,af2,vals.values)
-                        mat_fc[naf*n1+n1_+1,naf*n2+n2_]=avGFP
+                        r=naf*n1+n1_+1
+                        col=naf*n2+n2_
+                        mat_fc[r,col]=avGFP
+                        if min_:
+                            mat_fcmin[r,col]=np.nanmin(vals)
+                        if max_:
+                            mat_fcmax[r,col]=np.nanmax(vals)
+                        if std:
+                            mat_fcstd[r,col]=np.std(vals)
                         if matnames:
-                            mat_names[naf*n1+n1_+1,naf*n2+n2_]=names_short[n2]+affinities_short[n2_]+'\n'+names_short[n1]+affinities_short[n1_]
+                            mat_names[r,col]=names_short[n2]+affinities_short[n2_]+'\n'+names_short[n1]+affinities_short[n1_]
                     else: #for the cases where the two TFs are the same, but affinities are different, there are two different entries in the table. Take the average, and only when n2_>n1_:
                         if n2_>n1_: 
                             vals1=df[(df['activator1']==TF1)&(df['activator2']==TF2)&(df['affinity1']==af1)&(df['affinity2']==af2)][cGFP]
                             #print(TF1, af1, TF2, af2, vals.values)
-                            avGFP1=np.nanmean(vals1.values)
+                            #avGFP1=np.nanmean(vals1.values)
                             vals2=df[(df['activator1']==TF1)&(df['activator2']==TF2)&(df['affinity1']==af2)&(df['affinity2']==af1)][cGFP]
                             #print(TF1, af1, TF2, af2, vals.values)
-                            avGFP2=np.nanmean(vals2.values)
-                            mat_fc[naf*n1+n1_+1,naf*n2+n2_]=(avGFP1+avGFP2)/2
+                            #avGFP2=np.nanmean(vals2.values)
+                            vals=np.concatenate([vals1.values,vals2.values])
+                            avGFP=np.nanmean(vals)
+                            r=naf*n1+n1_+1
+                            col=naf*n2+n2_
+                            mat_fc[r,col]=avGFP
+                            if min_:
+                                mat_fcmin[r,col]=np.nanmin(vals)
+                            if max_:
+                                mat_fcmax[r,col]=np.nanmax(vals)
+                            if std:
+                                mat_fcstd[r,col]=np.std(vals)
                             if matnames:
-                                mat_names[naf*n1+n1_+1,naf*n2+n2_]=names_short[n2]+affinities_short[n2_]+'\n'+names_short[n1]+affinities_short[n1_]
+                                mat_names[r,col]=names_short[n2]+affinities_short[n2_]+'\n'+names_short[n1]+affinities_short[n1_]
                                 #print(mat_names[naf*n1+n1_+1,naf*n2+n2_],avGFP1,avGFP2,mat_fc[naf*n1+n1_+1,naf*n2+n2_])
 
     for n1 in range(nTFs):
@@ -59,91 +84,32 @@ def get_exp_matrix(df,TFnames,affinities,matnames=False):
         for n1_ in range(naf):
             af1=affinities[n1_]
             vals=df[(df['activator1']==TF1)&(df['activator2']=='-')&(df['affinity1']==af1)][cGFP]
-            mat_fc[0,naf*n1+n1_]=np.nanmean(vals.values)
+            avGFP=np.nanmean(vals.values)
+            #print(TF1,af1,TF2,af2,vals.values)
+            r=0
+            col=naf*n1+n1_
+            mat_fc[r,col]=avGFP
+            if min_:
+                mat_fcmin[r,col]=np.nanmin(vals)
+            if max_:
+                mat_fcmax[r,col]=np.nanmax(vals)
+            if std:
+                mat_fcstd[r,col]=np.std(vals)
             if matnames:
-                mat_names[0,naf*n1+n1_]=names_short[n1]+' '+affinities_short[n1_]
+                mat_names[r,col]=names_short[n1]+' '+affinities_short[n1_]
             #print(TF1,af1,vals)
+    returnlist=[mat_fc]
     if matnames:
-        return [mat_fc,mat_names]
-    else:
-        return mat_fc
+        returnlist.append(mat_names)
+    if min_:
+    	returnlist.append(mat_fcmin)
+    if max_:
+    	returnlist.append(mat_fcmax)
+    if std:
+    	returnlist.append(mat_fcstd)
+    return returnlist
 
-def get_exp_matrix_minmax(df,TFnames,affinities,matnames=False,extreme='min'):
-    """if extreme=='min', returns min. if extreme=='max', returns max"""
-    if not extreme in ['min','max']:
-        print('extreme argument must either be min or max')
-        raise ValueError
-    cGFP=['GFPfa1','GFPfa2','GFPfa3']
-    naf=len(affinities)
-    nTFs=len(TFnames)
-    mat_fc=np.zeros((naf*nTFs+1,naf*nTFs)) #additional row on top is to compare to nothing on TF2
-    if matnames:
-        names_short=[x[0] if x!='HSF1m' else x[-1] for x in TFnames]
-        affinities_short=[parenthesis.findall(x)[0] for x in affinities]
-        mat_names=np.empty_like(mat_fc,dtype='object')
 
-    for n1 in range(nTFs):
-        TF1=TFnames[n1]
-        for n1_ in range(naf):
-            af1=affinities[n1_]
-            for n2 in range(n1,nTFs):
-                TF2=TFnames[n2]
-                for n2_ in range(naf):
-                    af2=affinities[n2_]
-                    if n1!=n2 or (n1==n2 and n1_==n2_):
-                        vals1=df[(df['activator1']==TF1)&(df['activator2']==TF2)&(df['affinity1']==af1)&(df['affinity2']==af2)][cGFP]
-                        vals1=vals1.values
-
-                        vals2=df[(df['activator1']==TF2)&(df['activator2']==TF1)&(df['affinity1']==af2)&(df['affinity2']==af1)][cGFP]
-                        vals2=vals2.values
-
-                        if len(vals1)>0:
-                            vals=vals1
-                        else:
-                            vals=vals2
-
-                        #print(TF1, af1, TF2, af2, vals2.values)
-                        if extreme=='min':
-                            extremeGFP=np.nanmin(vals)
-                        elif extreme=='max':
-                            extremeGFP=np.nanmax(vals)
-                        #print(TF1,af1,TF2,af2,vals.values)
-                        mat_fc[naf*n1+n1_+1,naf*n2+n2_]=extremeGFP
-                        if matnames:
-                            mat_names[naf*n1+n1_+1,naf*n2+n2_]=names_short[n2]+affinities_short[n2_]+'\n'+names_short[n1]+affinities_short[n1_]
-                    else: #for the cases where the two TFs are the same, but affinities are different, there are two different entries in the table. Take the average, and only when n2_>n1_:
-                        if n2_>n1_: 
-                            vals1=df[(df['activator1']==TF1)&(df['activator2']==TF2)&(df['affinity1']==af1)&(df['affinity2']==af2)][cGFP]
-                            #print(TF1, af1, TF2, af2, vals.values)
-                            
-                            vals2=df[(df['activator1']==TF1)&(df['activator2']==TF2)&(df['affinity1']==af2)&(df['affinity2']==af1)][cGFP]
-                            #print(TF1, af1, TF2, af2, vals.values)
-                            if extreme=='min':
-                                extremeGFP=np.nanmin([np.nanmin(vals1),np.nanmin(vals2)])
-                            elif extreme=='max':
-                                extremeGFP=np.nanmax([np.nanmax(vals1),np.nanmax(vals2)])
-                            mat_fc[naf*n1+n1_+1,naf*n2+n2_]=extremeGFP
-                            if matnames:
-                                mat_names[naf*n1+n1_+1,naf*n2+n2_]=names_short[n2]+affinities_short[n2_]+'\n'+names_short[n1]+affinities_short[n1_]
-                                #print(mat_names[naf*n1+n1_+1,naf*n2+n2_],avGFP1,avGFP2,mat_fc[naf*n1+n1_+1,naf*n2+n2_])
-
-    for n1 in range(nTFs):
-        TF1=TFnames[n1]
-        for n1_ in range(naf):
-            af1=affinities[n1_]
-            vals=df[(df['activator1']==TF1)&(df['activator2']=='-')&(df['affinity1']==af1)][cGFP]
-            if extreme=='min':
-                extremeGFP=np.nanmin(vals)
-            elif extreme=='max':
-                extremeGFP=np.nanmax(vals)
-            mat_fc[0,naf*n1+n1_]=extremeGFP
-            if matnames:
-                mat_names[0,naf*n1+n1_]=names_short[n1]+' '+affinities_short[n1_]
-            #print(TF1,af1,vals)
-    if matnames:
-        return [mat_fc,mat_names]
-    else:
-        return mat_fc
 
 def get_parameters_TF_v1(pars,indicesbinding=None,indicesP=None,indicesaf=None,TFidx=None,afidx=None,fixedpars=None):
     """pars is the array of parameters to be optimized.
