@@ -117,13 +117,22 @@ def plot_fitresult(mat_fc,parset,mat_names,cmap1=plt.cm.BuGn,cmap2=plt.cm.Blues,
         plt.tight_layout()
         plt.show()
 
-def plot_comparison_lines(exp_,model_,labels,ax=None):
+def plot_comparison_lines(exp_,model_,labels,ax=None,min_=[],max_=[]):
+    """max_ and min_ should be two lists/arrays with min and max at a given x."""
     if ax is None:
         fig,ax=plt.subplots(1,1,figsize=(18,4))
         show=True
     else:
         show=False
+    if len(min_)!=len(max_):
+        print('to plot max and min please specify max and min values for each datapoint')
+        raise ValueError
+    #if min_ is None:
     ax.plot(range(len(exp_)),exp_,color='r',marker='o',label='exp')
+    if len(min_)>0:
+        min_=-(np.asarray(min_)-np.asarray(exp_))
+        max_=np.asarray(max_)-np.asarray(exp_)
+        ax.errorbar(range(len(exp_)),exp_,yerr=np.vstack((min_,max_)),color='r')
     ax.plot(range(len(model_)),model_,color='k',marker='o',label='model')
     ax.set_xticks(range(len(model_)))
     ax.set_xticklabels(labels,rotation='90')
