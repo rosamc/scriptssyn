@@ -83,8 +83,8 @@ def get_exp_matrix(df,TFnames,affinities,matnames=False,min_=False,max_=False,st
         TF1=TFnames[n1]
         for n1_ in range(naf):
             af1=affinities[n1_]
-            vals=df[(df['activator1']==TF1)&(df['activator2']=='-')&(df['affinity1']==af1)][cGFP]
-            avGFP=np.nanmean(vals.values)
+            vals=df[(df['activator1']==TF1)&(df['activator2']=='-')&(df['affinity1']==af1)][cGFP].values
+            avGFP=np.nanmean(vals)
             #print(TF1,af1,TF2,af2,vals.values)
             r=0
             col=naf*n1+n1_
