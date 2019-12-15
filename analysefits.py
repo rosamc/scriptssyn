@@ -76,18 +76,22 @@ def plot_fitresult(mat_fc,parset,mat_names,cmap1=plt.cm.BuGn,cmap2=plt.cm.Blues,
     print()
     m=matricesy.get_m_model(parset,**kwargs)
     maskmodel=np.ma.masked_array(m,mask=(m==0))
-    dif=maskmodel/maskexp
+    dif=(maskmodel-maskexp)/maskexp
+    difup=np.ma.masked_array(dif,mask=dif<0)
+    difdown=np.ma.masked_array(dif,mask=dif>0)
     
     ax=axes[0]
-    im=ax.imshow(dif,aspect='auto',cmap=cmap1)
+    im1=ax.imshow(difup,aspect='auto',cmap=plt.cm.Blues)
+    im2=ax.imshow(difdown,aspect='auto',cmap=plt.cm.Greens_r)
     ax.grid()
-    plt.colorbar(im,ax=ax,label='fc model/fc exp') #,extend='both')
-    #for row in range(len(mat_names)):
+    plt.colorbar(im1,ax=ax,label='(fc model-fc exp)/(fc exp)') #,extend='both
+    plt.colorbar(im2,ax=ax,label='(fc model-fc exp)/(fc exp)') #,extend='both')
+        #for row in range(len(mat_names)):
     #    for col in range(len(mat_names[0])):
     #        text=mat_names[row,col]
     #        #ax.text(col-0.5,row+0.5,text,fontsize=10,color='k')
     ax.set_xticks(range(len(mat_names[0])))
-    ax.set_xticklabels(mat_names[0])
+    ax.set_xticklabels([x.replace(' ','') for x in mat_names[0]],rotation=90)
     ax.xaxis.tick_top()
     ax.set_yticks(range(len(mat_names)))
     ax.set_yticklabels(['-']+list(mat_names[0]))
@@ -100,7 +104,7 @@ def plot_fitresult(mat_fc,parset,mat_names,cmap1=plt.cm.BuGn,cmap2=plt.cm.Blues,
     cb=plt.colorbar(im,ax=ax,label='fold change with respect to basal')
     xticks=range(len(mat_names[0])*f)[int(f/2)::f]
     ax.set_xticks(xticks)
-    ax.set_xticklabels(mat_names[0])
+    ax.set_xticklabels(mat_names[0],rotation=90)
     ax.xaxis.tick_top()
     yticks=range(len(mat_names)*f)[int(f/2)::f]
     ax.set_yticks(yticks)
