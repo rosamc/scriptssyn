@@ -251,7 +251,7 @@ def get_m_model(pars,fixedpars=None,funcss=None,funcgetpars=None,nTFs=6,affiniti
                             kt2,b2=funcgetpars(pars,indicesP=indicesP,fixedpars=fixedpars,TFidx=n2,afidx=nafc[n2_],**kwargs)
                         elif 'v2' in funcgetpars.__name__:
                             kt2,b2=funcgetpars(pars,TFidx=n2,afidx=nafc[n2_],**kwargs)
-                        parset=np.hstack((pars_Pbasal,kt1,kt2,b1,b2))
+                        parset=np.hstack((pars_Pbasal,kt1,kt2,b2,b1))
                         ss=funcss(parset,array1,1)
                         mat[naf*n1+n1_+1,naf*n2+n2_]=ss/ss0
                     
@@ -329,7 +329,7 @@ def get_binding_indices(TFidx,nbasalcycle=None,ncycleperTF=None,bindingperTF=Non
                 if 'offr': means only one offrate. if '3offr': 3 offrates
     mutations: number of parameters at the beginning of the parameter set array corresponding to the effects of the mutations.
     """
-    pbon,pboff=get_pb(bidningperTF)
+    pbon,pboff=get_pb(binDingperTF)
     nbindingperTF=pbon+pboff
     i0=mutations+nbasalcycle+TFidx*(ncycleperTF+nbindingperTF)+ncycleperTF
     i1=i0+nbindingperTF
