@@ -200,7 +200,7 @@ def get_m_model(pars,fixedbasal=False,pars_Pbasal=[],funcss=None,funcgetpars=Non
     kwargs: indicesP, indicesaf,indicesbinding
     fixedbasal: True if the basal parameter of the Pol cycle are fixed
     """
-    if fixedbasal is False and len(pars_Pbasal)==0:
+    if fixedbasal is True and len(pars_Pbasal)==0:
         print('No pars_Pbasal given. Exiting...')
 
     array1=np.array([1])
