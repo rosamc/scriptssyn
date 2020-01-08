@@ -111,13 +111,14 @@ def get_exp_matrix(df,TFnames,affinities,matnames=False,min_=False,max_=False,st
 
 
 
-def get_parameters_TF_v1(pars,indicesbinding=None,indicesP=None,indicesaf=None,TFidx=None,afidx=None,fixedbasal=False):
+def get_parameters_TF_v1(pars,indicesbinding=None,indicesP=None,indicesaf=None,TFidx=None,afidx=None,fixedbasal=False,fixedpars=None):
     """pars is the array of parameters to be optimized.
     indicesbinding is a list of 2 arrays: one with the indices for kbXa, kbXi, kbXn, and the other with the indices for kuXa, kuXi, kuXn
     indicesP is a list of arrays for each of the possible TFs. Each array has the indices for ktia, ktan, ktin, ktni.
     indicesaf is a list with the indices for the positions that contain the factors to change affinity.
     TFidx is the index of the TF parameters in indicesP
     afidx is the index of the affinity: 0: WT, 1: 5X, 2: 7X
+    fixedpars=None does nothing but is left for backward compatibility.
     """
     
     
@@ -193,7 +194,7 @@ def get_parameters_TF_v2(pars,nbasalcycle=None,ncycleperTF=None,bindingperTF=Non
     return [pars[idxsP],parsbinding]
 
 
-def get_m_model(pars,fixedbasal=False,pars_Pbasal=[],funcss=None,funcgetpars=None,nTFs=6,affinities=['WT','5X','7X'],indicesP=None,**kwargs):
+def get_m_model(pars,fixedbasal=False,pars_Pbasal=[],funcss=None,funcgetpars=None,nTFs=6,affinities=['WT','5X','7X'],indicesP=None,fixedpars=None,**kwargs):
     """Return the matrix of foldchanges from the model. 
     Pars are the parameters to be optimized.
     funcss is the function to get the ss from parameters.
