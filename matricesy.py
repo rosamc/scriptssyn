@@ -111,7 +111,7 @@ def get_exp_matrix(df,TFnames,affinities,matnames=False,min_=False,max_=False,st
 
 
 
-def get_parameters_TF_v1(pars,indicesbinding=None,indicesP=None,indicesaf=None,TFidx=None,afidx=None,fixedpars=None):
+def get_parameters_TF_v1(pars,indicesbinding=None,indicesP=None,indicesaf=None,TFidx=None,afidx=None,fixedbasal=False):
     """pars is the array of parameters to be optimized.
     indicesbinding is a list of 2 arrays: one with the indices for kbXa, kbXi, kbXn, and the other with the indices for kuXa, kuXi, kuXn
     indicesP is a list of arrays for each of the possible TFs. Each array has the indices for ktia, ktan, ktin, ktni.
@@ -133,13 +133,9 @@ def get_parameters_TF_v1(pars,indicesbinding=None,indicesP=None,indicesaf=None,T
             factor=pars[ifcb[0]]*pars[ifcb[1]] #the factor for 5X is multiplied by another factor >1, so that for sure it will be greater 
     else:
         factor=1
-    if fixedpars is None:
-        parsbinding[::2]=pars[idxsb]/factor #factor is >=1 so reduced binding with mutation
-    else:
-        #if 'kb' in fixedpars:
-        parsbinding[::2]=fixedpars[idxsb]/factor
-        #else:
-        #    parsbinding[::2]=pars[idxsb]/factor
+    
+    parsbinding[::2]=pars[idxsb]/factor #factor is >=1 so reduced binding with mutation
+    
     if afidx>0 and ifcu[0] is not None:
         if afidx==1:
             
@@ -149,18 +145,16 @@ def get_parameters_TF_v1(pars,indicesbinding=None,indicesP=None,indicesaf=None,T
     else:
         factor=1
     
-    if fixedpars is None:
-        parsbinding[1::2]=pars[idxsu]*factor #greater unbinding than WT if factor > 1
+    
+    parsbinding[1::2]=pars[idxsu]*factor #greater unbinding than WT if factor > 1
+    
+    if fixedbasal is False:
+        idxsP=indicesP[TFidx+1] #TFidx 0 is basal, so actual TFs start after that
     else:
-        #if 'ku' in fixedpars:
-        parsbinding[1::2]=fixedpars[idxsu]*factor
-        #else:
-        #    parsbinding[1::2]=pars[idxsu]*factor
-    idxsP=indicesP[TFidx+1] #TFidx 0 is basal, so actual TFs start after that
-    if fixedpars is None:
-        parsP=pars[idxsP]
-    else:
-        parsP=fixedpars[idxsP]
+        idxsP=indicesP[TFidx]
+    
+    parsP=pars[idxsP]
+    
     #print(parsP,parsbinding)
     return [parsP,parsbinding]
 
@@ -199,27 +193,25 @@ def get_parameters_TF_v2(pars,nbasalcycle=None,ncycleperTF=None,bindingperTF=Non
     return [pars[idxsP],parsbinding]
 
 
-def get_m_model(pars,fixedpars=None,funcss=None,funcgetpars=None,nTFs=6,affinities=['WT','5X','7X'],indicesP=None,**kwargs):
+def get_m_model(pars,fixedbasal=False,pars_Pbasal=[],funcss=None,funcgetpars=None,nTFs=6,affinities=['WT','5X','7X'],indicesP=None,**kwargs):
     """Return the matrix of foldchanges from the model. 
     Pars are the parameters to be optimized.
     funcss is the function to get the ss from parameters.
     kwargs: indicesP, indicesaf,indicesbinding
-    fixedpars: array of parameter values not to explore
+    fixedbasal: True if the basal parameter of the Pol cycle are fixed
     """
-    
+    if fixedbasal is False and len(pars_Pbasal)==0:
+        print('No pars_Pbasal given. Exiting...')
+
     array1=np.array([1])
     array0=np.array([0])
    
-    if fixedpars is None:
+    if fixedbasal is False:
         if 'v1' in funcgetpars.__name__:
             pars_Pbasal=pars[indicesP[0]]
         elif 'v2' in funcgetpars.__name__:
             pars_Pbasal=pars[indicesP]
-    else: #assume all parameters are fixed except those for the factors of the mutations
-        if 'v1' in funcgetpars.__name__:
-            pars_Pbasal=fixedpars[indicesP[0]]
-        elif 'v2' in funcgetpars.__name__:
-            pars_Pbasal=fixedpars[indicesP]
+    #otherwise 
     
     parset0=np.hstack((pars_Pbasal,pars_Pbasal,pars_Pbasal,np.ones(6),np.ones(6))) #need ones for binding and unbinding even if it does nothin
     ss0=funcss(parset0,array0,0)
@@ -237,7 +229,7 @@ def get_m_model(pars,fixedpars=None,funcss=None,funcgetpars=None,nTFs=6,affiniti
     for n1 in range(nTFs):
         for n1_ in range(naf):
             if 'v1' in funcgetpars.__name__:
-                kt1,b1=funcgetpars(pars,indicesP=indicesP,fixedpars=fixedpars,TFidx=n1,afidx=nafc[n1_],**kwargs)
+                kt1,b1=funcgetpars(pars,indicesP=indicesP,fixedbasal=fixedbasal,TFidx=n1,afidx=nafc[n1_],**kwargs)
             elif 'v2' in funcgetpars.__name__:
                 kt1,b1=funcgetpars(pars,TFidx=n1,afidx=nafc[n1_],**kwargs)
             else:
@@ -248,7 +240,7 @@ def get_m_model(pars,fixedpars=None,funcss=None,funcgetpars=None,nTFs=6,affiniti
                 for n2_ in range(naf):
                     if not (n1==n2 and n2_<n1_):
                         if 'v1' in funcgetpars.__name__:
-                            kt2,b2=funcgetpars(pars,indicesP=indicesP,fixedpars=fixedpars,TFidx=n2,afidx=nafc[n2_],**kwargs)
+                            kt2,b2=funcgetpars(pars,indicesP=indicesP,fixedbasal=fixedbasal,TFidx=n2,afidx=nafc[n2_],**kwargs)
                         elif 'v2' in funcgetpars.__name__:
                             kt2,b2=funcgetpars(pars,TFidx=n2,afidx=nafc[n2_],**kwargs)
                         parset=np.hstack((pars_Pbasal,kt1,kt2,b2,b1))
@@ -272,7 +264,7 @@ def get_m_model(pars,fixedpars=None,funcss=None,funcgetpars=None,nTFs=6,affiniti
     for n1 in range(nTFs):
         for n1_ in range(naf):
             if 'v1' in funcgetpars.__name__:
-                kt1,b1=funcgetpars(pars,indicesP=indicesP,fixedpars=fixedpars,TFidx=n1,afidx=nafc[n1_],**kwargs)
+                kt1,b1=funcgetpars(pars,indicesP=indicesP,fixedbasal=fixedbasal,TFidx=n1,afidx=nafc[n1_],**kwargs)
             elif 'v2' in funcgetpars.__name__:
                 kt1,b1=funcgetpars(pars,TFidx=n1,afidx=nafc[n1_],**kwargs)
             parset=np.hstack((pars_Pbasal,kt1,kt1,b1,b1))
@@ -354,4 +346,63 @@ def get_initial_parset(bounds,logb=False,seed=1):
     return pars
 
 
+def get_indices(TFnames,suff1,suff2,nPcycle=4,returnparnames=False,fixedbasal=False):
+    names=[]
+    if suff2=='_mutu':
+        indices_af=np.array([[None,None],[0,1]])
+        names.extend(['fu5X','fu7X'])
+    elif suff2=='_mutbu':
+        indices_af=np.array([[0,1],[2,3]]) #0, 1 positions in parameter array correspond to factor for change in affinity for 5X, and additional factor for change in affinity for 7X
+        names.extend(['fb5X','fb7X','fu5X','fu7X'])
+    else:
+        print('wrong suff2',suff2)    
+    i0=indices_af[1][-1]+1
+    if suff1=='_sameb':
+        i1=i0+1
+        i2=i1+1
+        indices_binding=[np.array([i0,i0,i0]),np.array([i1,i1,i1])] #assume binding and unbinding are the same for all states
+        names.extend(['kb','ku'])
+    if suff1=='_difkb':
+        i1=i0+1
+        i2=i1+3
+        indices_binding=[np.array([i0,i0,i0]),np.array([i1,i1+1,i1+2])] #assume unbinding is different
+        names.extend(['kb','ku1','ku2','ku3'])
+    if suff1=='_difkbku':
+        i1=i0+3
+        i2=i1+3
+        indices_binding=[np.array([i0,i0+1,i0+2]),np.array([i1,i1+1,i1+2])] #assume binding and unbinding are different
+        names.extend(['kb1','kb2','kb3','ku1','ku2','ku3'])
+    
+    if nPcycle==3:
+        Pk=['kia','kan','kni']
+    else:
+        Pk=['kia','kan','kin','kni']
+    if not fixedbasal:
+        indices_basal=np.arange(i2,i2+nPcycle)
+        for k in Pk:
+            names.append(k+'0')
+        
+        all_indices=[indices_basal]
+        i=indices_basal[-1]+1
+    else:
+        all_indices=[]
+        i=indices_binding[-1][-1]+1
+    
+    for TF in TFnames:
+        indices=[]
+        for p in range(nPcycle):
+            indices.append(i)
+            i+=1
+        all_indices.append(np.array(indices))
+        for k in Pk:
+            names.append(k+TF)
+    #iprint('npars:',i)
+
+    npars=i
+    if returnparnames:
+        returnlist=[indices_af,indices_binding,all_indices,npars,names]
+    else:
+        returnlist=[indices_af,indices_binding,all_indices,npars]
+    #print(npars)
+    return returnlist
 
