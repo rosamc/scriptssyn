@@ -202,6 +202,8 @@ def get_m_model(pars,fixedbasal=False,pars_Pbasal=[],funcss=None,funcgetpars=Non
     """
     if fixedbasal is True and len(pars_Pbasal)==0:
         print('No pars_Pbasal given. Exiting...')
+    if fixedbasal not in [True,False]:
+        print("fixedbasal should either be True or False. Exiting...")
 
     array1=np.array([1])
     array0=np.array([0])
