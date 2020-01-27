@@ -349,33 +349,68 @@ def get_initial_parset(bounds,logb=False,seed=1):
     return pars
 
 
-def get_indices(TFnames,suff1,suff2,nPcycle=4,returnparnames=False,fixedbasal=False):
+def get_indices(TFnames,suff1,suff2,nPcycle=4,returnparnames=False,fixedbasal=False,affinities=['ZF(WT)','ZF(5X)','ZF(7X)']):
+    if not 'ZF(WT)' in affinities:
+        print("It doesn't make sense to test an affinity mutation without the WT. A reference is required. Exiting...")
+        raise ValueError
+
     names=[]
     if suff2=='_mutu':
-        indices_af=np.array([[None,None],[0,1]])
-        names.extend(['fu5X','fu7X'])
+        if len(affinities)==3:
+            indices_af=np.array([[None,None],[0,1]])
+            names.extend(['fu5X','fu7X'])
+        elif len(affinities)==2:
+            indices_af=np.array([[None],[0]])
+            if 'ZF(5X)' in affinities:
+                names.extend(['fu5X'])
+            elif 'ZF(7X)' in affinities:
+                names.extend(['fu7X'])
+            else:
+                print("Unrecognized affinity.", affinities)
+                raise ValueError
+        elif len(affinities)==1:
+            print("suff _mutu doesn't make sense with one affinity only. Exiting")
+            raise ValueError
     elif suff2=='_mutbu':
-        indices_af=np.array([[0,1],[2,3]]) #0, 1 positions in parameter array correspond to factor for change in affinity for 5X, and additional factor for change in affinity for 7X
-        names.extend(['fb5X','fb7X','fu5X','fu7X'])
+        if len(affinities)==3:
+            indices_af=np.array([[0,1],[2,3]]) #0, 1 positions in parameter array correspond to factor for change in affinity for 5X, and additional factor for change in affinity for 7X
+            names.extend(['fb5X','fb7X','fu5X','fu7X'])
+        elif len(affinities)==2:
+            indices_af=np.array([[0],[1]])
+            if 'ZF(5X)' in affinities:
+                names.extend(['fb5X','fu5X'])
+            elif 'ZF(7X)' in affinities:
+                names.extend(['fb7X','fu7X'])
+            else:
+                print("Unrecognized affinity.", affinities)
+                raise ValueError
+        elif len(affinities)==1:
+            print("suff _mutbu doesn't make sense with one affinity only. Exiting")
+            raise ValueError
     else:
-        print('wrong suff2',suff2)    
+        print('wrong suff2',suff2) 
+        raise ValueError
+
     i0=indices_af[1][-1]+1
     if suff1=='_sameb':
         i1=i0+1
         i2=i1+1
         indices_binding=[np.array([i0,i0,i0]),np.array([i1,i1,i1])] #assume binding and unbinding are the same for all states
         names.extend(['kb','ku'])
-    if suff1=='_difkb':
+    elif suff1=='_difkb':
         i1=i0+1
         i2=i1+3
         indices_binding=[np.array([i0,i0,i0]),np.array([i1,i1+1,i1+2])] #assume unbinding is different
         names.extend(['kb','ku1','ku2','ku3'])
-    if suff1=='_difkbku':
+    elif suff1=='_difkbku':
         i1=i0+3
         i2=i1+3
         indices_binding=[np.array([i0,i0+1,i0+2]),np.array([i1,i1+1,i1+2])] #assume binding and unbinding are different
         names.extend(['kb1','kb2','kb3','ku1','ku2','ku3'])
-    
+    else:
+        print("Wrong suff1.")
+        raise ValueError
+        
     if nPcycle==3:
         Pk=['kia','kan','kni']
     else:
