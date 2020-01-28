@@ -293,12 +293,12 @@ def readf(folder,f,fixedbasal=False,nlines=4,affinities=['ZF(WT)','ZF(5X)','ZF(7
     cols2='fb5X,fb7X,fu5X,fu7X,kba,kbi,kbn,kua,kui,kun'.split(',')
     af5X=False
     af7X=False
-    if 'ZF(5X)' in af and 'ZF(7X)' in af:
+    if 'ZF(5X)' in affinities and 'ZF(7X)' in affinities:
         af5X=True
         af7X=True
-    elif 'ZF(5X)' in af:
+    elif 'ZF(5X)' in affinities:
         af5X=True
-    elif 'ZF(7X)' in af:
+    elif 'ZF(7X)' in affinities:
         af7X=True
     
     cols3=['kia0','kan0','kin0','kni0','kia','kan','kin','kni']
