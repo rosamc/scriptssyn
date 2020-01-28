@@ -122,7 +122,7 @@ def plot_fitresult(mat_fc,parset,mat_names,cmap1=plt.cm.BuGn,cmap2=plt.cm.Blues,
         plt.tight_layout()
         plt.show()
 
-def plot_comparison_lines(exp_,model_,labels,ax=None,min_=[],max_=[],linelabel='model',plotexp=True,colormodel='k'):
+def plot_comparison_lines(exp_,model_,labels,ax=None,min_=[],max_=[],linelabel='model',plotexp=True,colormodel='k',alphamodel=1):
     """max_ and min_ should be two lists/arrays with min and max at a given x."""
     if ax is None:
         fig,ax=plt.subplots(1,1,figsize=(18,4))
@@ -141,7 +141,7 @@ def plot_comparison_lines(exp_,model_,labels,ax=None,min_=[],max_=[],linelabel='
 	        ax.errorbar(range(len(exp_)),exp_,yerr=np.vstack((min_,max_)),color='r')
     if linelabel is None:
     	linelabel='model'
-    ax.plot(range(len(model_)),model_,color=colormodel,marker='o',label=linelabel)
+    ax.plot(range(len(model_)),model_,color=colormodel,marker='o',label=linelabel,alpha=alphamodel)
     ax.set_xticks(np.arange(len(model_)))
     ax.set_xticklabels(labels,rotation='90')
     ax.set_ylabel('fold change')
@@ -152,7 +152,7 @@ def plot_comparison_lines(exp_,model_,labels,ax=None,min_=[],max_=[],linelabel='
     else:
         return ax
 
-def plot_result_matricesandlines(dfexp,parset,kwargs=None,TFnames=[],affinities=[],plotmats=True,plotlines=True,ncutoff=100,returnlines=False):
+def plot_result_matricesandlines(dfexp,parset,kwargs=None,TFnames=[],affinities=[],plotmats=True,plotlines=True,ncutoff=100,returnlines=False,ylog=False):
     
     mat_fc,mat_names,mat_expmin,mat_expmax=matricesy.get_exp_matrix(dfexp,TFnames,affinities,matnames=True,min_=True,max_=True)
     mat_fc_=mat_fc
@@ -247,12 +247,12 @@ def plot_result_matricesandlines(dfexp,parset,kwargs=None,TFnames=[],affinities=
         #plt.show()
     if plotlines:
         if len(model_)<ncutoff:
-            figsize=(14,3)
+            figsize=(14,5)
             nrows=3
             ncols=1
             
         else:
-            figsize=(14,8)
+            figsize=(14,10)
             nrows=7
             ncols=1
             
@@ -262,15 +262,21 @@ def plot_result_matricesandlines(dfexp,parset,kwargs=None,TFnames=[],affinities=
         if len(model_)<ncutoff:
             ax=plt.subplot2grid((nrows,ncols),(0,0),rowspan=3,colspan=1,fig=fig)
             ax=plot_comparison_lines(exp_,model_,labels,ax=ax,min_=exp_min,max_=exp_max)
+            if ylog:
+            	ax.set_yscale('log')
             #ax.set_title(title)
         else:
             ncut=int(len(exp_)/2)
             ax=plt.subplot2grid((nrows,ncols),(0,0),rowspan=3,colspan=1,fig=fig)
             ax=plot_comparison_lines(exp_[0:ncut],model_[0:ncut],labels[0:ncut],ax=ax,min_=exp_min[0:ncut],max_=exp_max[0:ncut])
+            if ylog:
+            	ax.set_yscale('log')
             #ax.set_title(title)
             
             ax=plt.subplot2grid((nrows,ncols),(4,0),rowspan=3,colspan=1,fig=fig)
             ax=plot_comparison_lines(exp_[ncut:],model_[ncut:],labels[ncut:],ax=ax,min_=exp_min[ncut:],max_=exp_max[ncut:])
+            if ylog:
+            	ax.set_yscale('log')
 
             
         plt.tight_layout()
