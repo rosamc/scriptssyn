@@ -152,7 +152,7 @@ def plot_comparison_lines(exp_,model_,labels,ax=None,min_=[],max_=[],linelabel='
     else:
         return ax
 
-def plot_result_matricesandlines(dfexp,parset,kwargs=None,TFnames=[],affinities=[],plotmats=True,plotlines=True,ncutoff=100,returnlines=False,ylog=False):
+def plot_result_matricesandlines(dfexp,parset,kwargs=None,TFnames=[],affinities=[],plotmats=True,plotlines=True,ncutoff=100,returnlines=False,ylog=False,figsizemats=None,figsizelines=None):
     
     mat_fc,mat_names,mat_expmin,mat_expmax=matricesy.get_exp_matrix(dfexp,TFnames,affinities,matnames=True,min_=True,max_=True)
     mat_fc_=mat_fc
@@ -160,7 +160,11 @@ def plot_result_matricesandlines(dfexp,parset,kwargs=None,TFnames=[],affinities=
     m=matricesy.get_m_model(parset,**kwargs)
     if plotmats:
         shape=(2,2)
-        fig=plt.figure(figsize=(12,5))         
+        if figsizemats is None:
+            figsize=(12,5)
+        else:
+            figsize=figsizemats
+        fig=plt.figure(figsize=figsize)         
         ax1=plt.subplot2grid(shape,(0,0),rowspan=2,colspan=1,fig=fig)
         ax2=plt.subplot2grid(shape,(0,1),rowspan=2,colspan=1,fig=fig)
         axes=[ax1,ax2]
@@ -202,10 +206,10 @@ def plot_result_matricesandlines(dfexp,parset,kwargs=None,TFnames=[],affinities=
         exp_min=[]
         exp_max=[]
         labels=[]
-        rrange=np.concatenate((np.array([0]),np.arange(1,len(mat_fc_))[::3]))
+        rrange=np.concatenate((np.array([0]),np.arange(1,len(mat_fc_))[::naf]))
         for r in rrange:
             if r>0:
-                for c_ in range(r-1,len(mat_fc_[0]))[::3]:
+                for c_ in range(r-1,len(mat_fc_[0]))[::naf]:
                     r0=r
                     r1=r0+3
                     c0=c_
@@ -247,12 +251,18 @@ def plot_result_matricesandlines(dfexp,parset,kwargs=None,TFnames=[],affinities=
         #plt.show()
     if plotlines:
         if len(model_)<ncutoff:
-            figsize=(14,5)
+            if figsizelines is None:
+                figsize=(14,5)
+            else:
+                figsize=figsizelines
             nrows=3
             ncols=1
             
         else:
-            figsize=(14,10)
+            if figsizelines is None:
+                figsize=(14,10)
+            else:
+                figsize=figsizelines
             nrows=7
             ncols=1
             
