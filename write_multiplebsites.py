@@ -1,6 +1,6 @@
 import numpy as np
-import os
-from scipy.linalg import null_space
+import os, re
+
 
 def link_next_binding(n,sites):
     """n: total number of sites
@@ -131,12 +131,271 @@ def write_laplacian_py(L,alledges,folder="./",fname=None):
     outf.write("\n")
     outf.close()
 
-def compute_ss_fromL(L):
-    L_d=np.diag(np.sum(L,axis=0))
-    L=L-L_d
-    rhos=null_space(L) #column vector
-    rhos=np.transpose(rhos)[0] #1 row
-    ss=np.abs(rhos)/np.sum(np.abs(rhos)) #can be - when very close to 0
-    return ss
+def write_pybind_module(fname,parnames,nnodes,TFnames,L,nbsites,indicesC=[None],coeffsC=[None],type="double"):
+    if indicesC[0] is None:
+        raise ValueError("Please specify the node indices that contribute to the steady state value.")
+    elif coeffsC[0] is None:
+        raise ValueError("Please specify the indices of the parameter values that multiply each steady state value. Set to -1 if the steady state is to be multiplied by 1.")
+    else:
+        if len(indicesC)!=len(coeffsC):
+            raise ValueError("indicesC and coeffsC should be lists of the same length.")
+    
+    for row in L:
+        for col in row:
+            n=0
+            for TF in TFnames:
+                if TF in col:
+                    n+=1
+            if n>1:
+                raise(ValueError("Code is only prepared for either no or one variable TF per label, but not more than 1. "))
+
+    outf=open(fname,'w')
+    outf.write("""
+#include <pybind11/pybind11.h>
+#include <pybind11/numpy.h>
+#include <pybind11/eigen.h>
+#include <Eigen/Core>
+#include <Eigen/SparseCore>
+#include <Eigen/Eigenvalues>
+#include <vector>
+#include <cmath>
+#include <stdlib.h>
+#include <iostream>
+#include "pos_stp_fromGRF.h"
+
+using namespace std;
+using namespace Eigen;
+namespace py=pybind11;
+
+""")
+    outf.write("typedef %s T;\n"%type)
+    outf.write("typedef Eigen::Matrix< T, Eigen::Dynamic, 1 > VectorXd;\n")
+    outf.write("typedef Eigen::Matrix< T, Eigen::Dynamic, Eigen::Dynamic > MatrixXd;\n")
+    outf.write("typedef Eigen::SparseMatrix<T> SM;\n")
+    LxTFs=""
+    for TF in TFnames:
+        LxTFs+=", std::vector<Eigen::Triplet<T>>& Lx%s"%(TF)
+    outf.write("""
+void pre_laplacianpars(py::array_t<double> parsar, SM& L %s ){
+//laplacian matrix with only parameter values, no variables. Also no values for those labels that depend upon variables.
+
+    auto parsarbuf=parsar.request();
+    double *pars=(double *) parsarbuf.ptr;
+"""%(LxTFs))
+    outf.write("    int n=%d;\n\n"%nnodes)
+
+    #write parameters
+    for p, par in enumerate(parnames):
+        outf.write("    T %s=pars[%d];\n"%(par,p))
+    #outf.write("    L<<")
+    
+    #write L
+    
+    outf.write("    std::vector<Eigen::Triplet<T>> clist;\n")
+    
+    TFliststring="|".join(TFnames)
+    pat=re.compile("\\*[%s]"%TFliststring)
+
+    for r,row in enumerate(L):
+        for c in range(len(row)):
+            data=row[c];
+            if data !='0':
+                n=0
+                for TF in TFnames:
+                    if TF in data:
+                        n+=1
+                if n==0:
+                    #only write parameters that are constant 
+                    outf.write("    clist.push_back(Eigen::Triplet<T>(%d,%d,%s));\n"%(r,c,data))
+
+    outf.write("""
+    Eigen::Triplet<double> trd;
+    for (int j=0;j<clist.size();j++){
+        trd=clist[j];
+        L.insert(trd.row(),trd.col())=trd.value();
+    }
+    L.makeCompressed();
+""")
+        
+    #write Lx for each TF
+    for TF in TFnames:
+        print("doing TF", TF)
+        for i,row in enumerate(L):
+             for j,col in enumerate(row):
+                 if TF in col:
+                     outf.write("    Lx%s.push_back(Eigen::Triplet<T>(%d,%d,%s));\n"%(TF,i,j,pat.sub("",col)))
+
+    
+
+
+    outf.write("    return;\n}\n")
+    
+    
+    
+
+
+    #interfaceps with respect to each TF
+    for TF in TFnames:
+        
+        outf.write("py::array_t<double> interfaceps_%s(py::array_t<double> parsar, py::array_t<double> othervars, int npoints, bool verbose, bool doublecheck ) {\n"%TF)
+        outf.write("    auto othervarsbuf=othervars.request();\n")
+        outf.write("    double *othervarsC=(double *) othervarsbuf.ptr;\n")
+        outf.write("    const int n=%d;\n"%nnodes)
+        outf.write("    SM L(n,n);\n")
+        LxTFs=""
+        for TF2 in TFnames:
+            outf.write("    std::vector<Eigen::Triplet<T>> Lx%s;\n"%TF2)
+            LxTFs+=", Lx%s"%TF2
+        
+        outf.write("    L.reserve(VectorXi::Constant(n,%d));\n"%(nbsites+1))
+        outf.write("    int i,j;\n")
+
+        j=0
+        for TF_ in TFnames:
+            #outf.write("    std::vector<Eigen::Triplet<int>> Lx%s;\n"%TF_)
+            if TF_!=TF:
+                outf.write("    double %sval=othervarsC[%d];\n"%(TF_,j))
+                j+=1
+
+        outf.write("    pre_laplacianpars(parsar,L %s);\n"%LxTFs)
+        for t,TF_ in enumerate(TFnames):
+        #    outf.write("    Lx_%s(Lx%s);\n"%(TF_,TF_))
+            if TF_!=TF:
+                outf.write("    insert_L_Lx_atval(L,Lx%s,%sval);\n"%(TF_,TF_))
+                
+        coeffsCstring=["pars[%d]"%idx if idx>=0 else 1 for idx in coeffsC]
+        outf.write("""
+    vector<double>result;
+    vector<int>indicesC={%s};
+    auto parsarbuf=parsar.request();
+    double *pars=(double *) parsarbuf.ptr;
+    vector<double>coeffsC={%s};
+    result={1,1};
+    result=compute_pos_stp_fromGRF(L,Lx%s,indicesC,coeffsC,verbose,npoints,doublecheck);
+    py::array_t<double> resultpy = py::array_t<double>(2);
+    py::buffer_info bufresultpy = resultpy.request();
+    double *ptrresultpy=(double *) bufresultpy.ptr;
+    ptrresultpy[0]=result[0];
+    ptrresultpy[1]=result[1];
+
+    return  resultpy;
+    }\n
+"""%(",".join(map(str,indicesC)),",".join(coeffsCstring),TF))
+
+    
+    #interfacess
+    outf.write("double interfacess(py::array_t<double> parsar, py::array_t<double> varvals, bool doublecheck, string method){\n")
+    outf.write("    const int n=%d;\n"%nnodes)
+    outf.write("    SM L(n,n);\n")
+    outf.write("    L.reserve(VectorXi::Constant(n,%d));"%(nbsites+1))
+    outf.write("    auto varsbuf=varvals.request();\n")
+    outf.write("    double *vars=(double *) varsbuf.ptr;\n")
+    LxTFs=""
+    for t,TF in enumerate(TFnames):
+        outf.write("    double %sval=vars[%d];\n"%(TF,t))
+        outf.write("    std::vector<Eigen::Triplet<T>> Lx%s;\n"%TF)
+        LxTFs+=", Lx%s"%TF
+
+    outf.write("    pre_laplacianpars(parsar,L %s);\n"%LxTFs)
+    #outf.write("    laplacianatX(varvals,L);")
+    for TF in TFnames:
+        outf.write("    insert_L_Lx_atval(L, Lx%s, %sval);\n"%(TF,TF))
+    outf.write("""
+    T cs;
+    for (int k=0; k<L.outerSize(); ++k) {
+        cs=0;
+        for(typename Eigen::SparseMatrix<T>::InnerIterator it (L,k); it; ++it){
+            cs+=it.value();
+        }
+        L.insert(k,k)=-cs;
+        }
+    """)
+    outf.write("    double ssval;\n")
+    outf.write("""    vector<int>indicesC={%s};
+    auto parsarbuf=parsar.request();
+    double *pars=(double *) parsarbuf.ptr;
+    vector<double>coeffsC={%s};
+    if (method=="svd"){
+    MatrixXd Ld=MatrixXd(L);
+    ssval=ssfromnullspace(Ld,indicesC,coeffsC,doublecheck);
+    }else{
+    ssval=ssfromnullspace(L,indicesC,coeffsC,doublecheck);
+    }
+    
+    return  ssval;
+    }\n
+"""%(",".join(map(str,indicesC)),",".join(coeffsCstring)))
+    
+    #interfacerhos
+    outf.write("py::array_t<double> interfacerhos(py::array_t<double> parsar, py::array_t<double> varvals, bool doublecheck, string method){\n")
+    outf.write("    const int n=%d;\n"%nnodes)
+    outf.write("    SM L(n,n);\n")
+    outf.write("    L.reserve(VectorXi::Constant(n,%d));"%(nbsites+1))
+    outf.write("    auto varsbuf=varvals.request();\n")
+    outf.write("    double *vars=(double *) varsbuf.ptr;\n")
+    LxTFs=""
+    for t,TF in enumerate(TFnames):
+        outf.write("    double %sval=vars[%d];\n"%(TF,t))
+        outf.write("    std::vector<Eigen::Triplet<T>> Lx%s;\n"%TF)
+        LxTFs+=", Lx%s"%TF
+
+    outf.write("    pre_laplacianpars(parsar,L%s);\n"%LxTFs)
+    #outf.write("    laplacianatX(varvals,L);")
+    for TF in TFnames:
+        outf.write("    insert_L_Lx_atval(L,Lx%s,%sval);\n"%(TF,TF))
+
+    outf.write("""
+    T cs;
+    for (int k=0; k<L.outerSize(); ++k) {
+         cs=0;
+            for(typename Eigen::SparseMatrix<T>::InnerIterator it (L,k); it; ++it){
+                cs+=it.value();
+            }
+            L.insert(k,k)=-cs;
+            }
+    """)
+    
+    outf.write("""    VectorXd N;
+    N.resize(n,1);
+    int i;
+    if (method=="svd"){
+    MatrixXd Ld=MatrixXd(L);
+    nullspace(Ld,N,doublecheck);
+    }else{
+    nullspace(L,N,doublecheck);
+    }
+    py::array_t<double> resultpy = py::array_t<double>(n);
+    py::buffer_info bufresultpy = resultpy.request();
+    double *ptrresultpy=(double *) bufresultpy.ptr;
+    for (i=0;i<n;i++){
+        ptrresultpy[i]=N[i];
+    }
+
+    return  resultpy;
+    }\n
+""")
+    
+    outf.write("PYBIND11_MODULE(%s,m){\n"%os.path.split(fname)[-1].replace(".cpp",""))
+    for TF in TFnames:
+        outf.write("""
+    m.def("interfaceps_%s", &interfaceps_%s, "A function which returns pos stp.",
+    py::arg("parsar"), py::arg("othervars"),py::arg("npoints")=1000, py::arg("verbose")=false,py::arg("doublecheck")=false);\n
+    """%(TF,TF))
+
+    outf.write("""m.def("interfacess", &interfacess, "A function which returns ss. Method should be qr (done on sparse matrix) or svd (done on dense matrix).",
+            py::arg("parsar"), py::arg("varvals"),py::arg("doublecheck")=false, py::arg("method")="qr");
+
+    m.def("interfacerhos", &interfacerhos, "A function which returns normalised nullspace (sums to 1 already). Method should be qr (done on sparse matrix) or svd (done on dense matrix).",
+            py::arg("parsar"), py::arg("varvals"),py::arg("doublecheck")=false, py::arg("method")="qr");
+    """)
+    outf.write("}\n\n")
+
+
+
+
+
+
+
+
 
 
