@@ -280,8 +280,14 @@ def merge_mirrored_unique_paths(mat_dp,result, idxs_rev):
             pathcount+=1
     return [np.array(newpaths),newinverses,np.array(newcounts),mirror]
 
-def plot_graphs(Gs,axes,idxref=3,coords=None,color_lists=None,color_args=None,dominant=[],connectstyle=None):
+def plot_graphs(Gs,axes,idxref=3,coords=None,color_lists=None,color_args=None,dominant=[],colord="r"):
     """idxref: graph whose nodes will be plotted in all cases, for reference purposes"""
+    edges0=[[1,0],[4,3],[7,6]]
+    edges1=[[1, 0], [0, 2], [2, 1], [4, 3], [3, 5], [5, 4], [7, 6], [6, 8], [8, 7]]
+    edges1_=[edge for edge in edges1 if not edge in edges0]
+    edges2=[[1, 2], [4, 5], [7, 8]]
+    edges3=[[0, 3], [3, 0], [1, 4], [4, 1], [2, 5], [5, 2], [0, 6], [6, 0], [1, 7], [7, 1], [2, 8], [8, 2]]
+    connectstyles=['arc3,rad=-0.8','arc3,rad=-0.25','arc3,rad=0.1','arc3,rad=-0.075']
     for j in range(len(Gs)):
         ax=axes[j]
         if len(Gs)>1:
@@ -289,14 +295,30 @@ def plot_graphs(Gs,axes,idxref=3,coords=None,color_lists=None,color_args=None,do
         else:
             G=Gs[0]
         #first draw all nodes so that locations are comparable
-        nx.draw_networkx_nodes(G,pos=coords,ax=ax,node_size=5,node_color='gray')
+        nx.draw_networkx_nodes(G,nodelist=[0,1,2],pos=coords,ax=ax,node_size=100,node_color='gray',node_shape="_")
+        nx.draw_networkx_nodes(G,nodelist=[3,4,5],pos=coords,ax=ax,node_size=100,node_color='gray',node_shape="H")
+        nx.draw_networkx_nodes(G,nodelist=[6,7,8],pos=coords,ax=ax,node_size=80,node_color='gray',node_shape="s")
+
         G=Gs[j]
-        edgelist=G.edges() #edges_list[j]
+        
+        #edgelist=G.edges() #edges_list[j]
         
         if color_args is None:
             nx.draw_networkx_edges(G,pos=coords,ax=ax,edgelist=edgelist,width=5)
+
         else:
-             nx.draw_networkx_edges(G,pos=coords,ax=ax,edgelist=edgelist,edge_color=color_lists[j],connectionstyle=connectstyle,**color_args)
+            Gedges=list(G.edges())
+            for el, edges in enumerate([edges0,edges1_,edges2,edges3]):
+                edge_color=[]
+                edges_=[]
+                for e in edges:
+                    if tuple(e) in Gedges:
+                        edge_color.append(G[e[0]][e[1]]["weight"])
+                        edges_.append(e)
+
+                nx.draw_networkx_edges(G,pos=coords,ax=ax,edgelist=edges_,edge_color=edge_color,connectionstyle=connectstyles[el],**color_args,)
+                
+            
             #if j==3:
                 #cax=fig.add_axes([0.3,0.,0.5,0.03])
                 #norm=mpl.colors.Normalize(vmin=color_args["edge_vmin"],vmax=color_args["edge_vmax"])
@@ -307,7 +329,10 @@ def plot_graphs(Gs,axes,idxref=3,coords=None,color_lists=None,color_args=None,do
         ax.set_yticks([])
         if len(dominant)>0:
             G=dominant[j]
-            nx.draw_networkx_edges(G,pos=coords,ax=ax,edge_color='k',connectionstyle=connectstyle)
+            Gedges=list(G.edges())
+            for el, edges in enumerate([edges0,edges1_,edges2,edges3]):
+                edgespresent=[e for e in edges if tuple(e) in Gedges]
+                nx.draw_networkx_edges(G,pos=coords,ax=ax,edgelist=edgespresent,edge_color=colord,connectionstyle=connectstyles[el],width=1)
     return 
 
 
