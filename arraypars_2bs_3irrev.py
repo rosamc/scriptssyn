@@ -35,7 +35,7 @@ def return_parsar_samebindingall(pars,constraint='any',f=np.mean,kofffixed=1):
                 k_1_0,k_2_0,k_3_0,a1,a2,a3,b1,b2,b3,k_1_1U2,k_2_1U2,k_3_1U2,kon=pars
                 koff=kofffixed
             else:
-                k_1_0,k_2_0,k_3_0,a1,a2,a3,b1,b2,b3,k_1_1U2,k_2_1U2,k_3_1U2,kon,koff=pars #11 pars
+                k_1_0,k_2_0,k_3_0,a1,a2,a3,b1,b2,b3,k_1_1U2,k_2_1U2,k_3_1U2,kon,koff=pars #14 pars
             k_1_1=a1
             k_2_1=a2 #10**a2
             k_3_1=a3 #10**a3
