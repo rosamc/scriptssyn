@@ -390,6 +390,155 @@ void pre_laplacianpars(py::array_t<double> parsar, SM& L %s ){
     """)
     outf.write("}\n\n")
 
+def write_pybind_module_highprecision(fname,parnames,nnodes,TFnames,L,nbsites,indicesC=[None],coeffsC=[None],precision=50):
+    if indicesC[0] is None:
+        raise ValueError("Please specify the node indices that contribute to the steady state value.")
+    elif coeffsC[0] is None:
+        raise ValueError("Please specify the indices of the parameter values that multiply each steady state value. Set to -1 if the steady state is to be multiplied by 1.")
+    else:
+        if len(indicesC)!=len(coeffsC):
+            raise ValueError("indicesC and coeffsC should be lists of the same length.")
+    
+    for row in L:
+        for col in row:
+            n=0
+            for TF in TFnames:
+                if TF in col:
+                    n+=1
+            if n>1:
+                raise(ValueError("Code is only prepared for either no or one variable TF per label, but not more than 1. "))
+
+    outf=open(fname,'w')
+    outf.write("""
+#include <boost/multiprecision/mpfr.hpp>
+#include <pybind11/pybind11.h>
+#include <pybind11/numpy.h>
+#include <pybind11/eigen.h>
+#include <cmath>
+#include <vector>
+#include <stack>
+#include <stdexcept>
+#include <Eigen/Dense>
+#include <stdlib.h>
+#include <iostream>
+
+using namespace std;
+using namespace Eigen;
+namespace py=pybind11;
+
+/**From kmnam MarkovDigraphs module
+ * Compute the nullspace of A by performing a singular value decomposition.
+ * 
+ * This function returns the column of V in the SVD of A = USV corresponding
+ * to the least singular value (recall that singular values are always
+ * non-negative). It therefore effectively assumes that the A has a 
+ * nullspace of dimension one.
+ * 
+ * @param A Input matrix to be decomposed. 
+ * @returns The column of V in the singular value decomposition A = USV 
+ *          corresponding to the least singular value. 
+ */
+
+template <typename T>
+Matrix<T, Dynamic, 1> getOneDimNullspaceFromSVD(const Ref<const Matrix<T, Dynamic, Dynamic> >& A)
+{
+    // Perform a singular value decomposition of A, only computing V in full
+    Eigen::BDCSVD<Matrix<T, Dynamic, Dynamic> > svd(A, Eigen::ComputeFullV);
+
+    // Return the column of V corresponding to the least singular value of A
+    // (always given last in the decomposition) 
+    Matrix<T, Dynamic, 1> singular = svd.singularValues(); 
+    Matrix<T, Dynamic, Dynamic> V = svd.matrixV();
+    return V.col(singular.rows() - 1); 
+}
+
+""")
+    outf.write("typedef boost::multiprecision::number<boost::multiprecision::mpfr_float_backend<%d> > InternalType;\n"%precision)
+    #getrhos
+    outf.write("""Matrix<InternalType, Dynamic, 1> getrhos(py::array_t<double> parsar, py::array_t<double> varvals){
+    auto parsarbuf=parsar.request();
+    double *pars=(double *) parsarbuf.ptr;
+    auto varsarbuf=varvals.request();
+    double *vars=(double *) varsarbuf.ptr;
+    """)
+    for t,TF in enumerate(TFnames):
+        outf.write("    InternalType %s=vars[%d];\n"%(TF,t))
+
+    for p, par in enumerate(parnames):
+        outf.write("    InternalType %s=pars[%d];\n"%(par,p))
+    
+    outf.write("    Matrix<InternalType, Dynamic, Dynamic> L = Matrix<InternalType, Dynamic, Dynamic>::Zero(%d, %d);\n"%(nnodes,nnodes))
+    outf.write("    L<<")
+    for r,row in enumerate(L):
+        if r==len(L)-1: #change comma by semicolon at the end
+            row=row.strip(",\n")
+            row=row+";\n"
+        outf.write(row)
+
+    
+    outf.write("\n    for (unsigned i = 0; i < %d; ++i){\n"%nnodes)
+    outf.write("""
+        L(i, i) = -(L.col(i).sum());
+    }
+    
+    Matrix<InternalType, Dynamic, 1> steady_state;
+    try
+    {
+    steady_state = getOneDimNullspaceFromSVD<InternalType>(L);
+    }
+    catch (const std::runtime_error& e)
+    {
+        throw;
+    }
+    InternalType norm = steady_state.sum();
+    for (int i=0; i<steady_state.size();i++){
+        steady_state[i]=steady_state[i] / norm;
+    }
+    return steady_state;}
+    """)
+
+    #interfacerhos
+    outf.write("""
+py::array_t<double> interfacerhos(py::array_t<double> parsar, py::array_t<double> varvals ) {
+    Matrix<InternalType, Dynamic, 1> rhos;
+    rhos=getrhos(parsar,varvals);
+    py::array_t<double> resultpy = py::array_t<double>(%d);
+    py::buffer_info bufresultpy = resultpy.request();
+    double *ptrresultpy=(double *) bufresultpy.ptr;
+    
+    for (int i=0;i<%d;i++){
+        ptrresultpy[i]=rhos[i].template convert_to<double>();
+    }
+    return resultpy;}\n"""%(nnodes,nnodes))
+
+    outf.write("double interfacess(py::array_t<double> parsar, py::array_t<double> varvals){\n")
+    indicesC_str=",".join(list(map(str,indicesC)))
+    outf.write("    std::vector<int> indicesC={%s};\n"%indicesC_str)
+    coeffsC_str=",".join(list(map(str,coeffsC)))
+    outf.write("    std::vector<int> coeffsC={%s};\n"%coeffsC_str)
+    outf.write("""
+    Matrix<InternalType, Dynamic, 1> rhos;
+    rhos=getrhos(parsar,varvals);
+    double ss=0;
+    auto parsarbuf=parsar.request();
+    double *pars=(double *) parsarbuf.ptr;
+    for (int i=0;i<indicesC.size();i++){
+            ss+=(rhos[indicesC[i]]*pars[coeffsC[i]]).template convert_to<double>();
+        }
+    return ss;
+    }
+    """)
+
+    
+    outf.write("PYBIND11_MODULE(%s,m){\n"%os.path.split(fname)[-1].replace(".cpp",""))
+    
+    outf.write("""
+    m.def("interfacerhos", &interfacerhos, "A function which returns the normalised ss rhos.",
+    py::arg("parsar"), py::arg("varvals"));
+    m.def("interfacess", &interfacess, "A function which returns the ss output, where appropriate rhos are multiplied by rates.",
+    py::arg("parsar"), py::arg("varvals"));\n}\n
+    """)
+
 
 
 
