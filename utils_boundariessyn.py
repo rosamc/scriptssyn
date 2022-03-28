@@ -26,6 +26,10 @@ def return_fullparset(parset,case):
         parset2=np.concatenate((parset[0:4],parset[0:3],parset[4:5],parset[0:3],parset[5:6],parset[6:8],parset[6:8],parset[6:8],parset[6:8],parset[6:8],parset[6:8]))
     elif case=="difAD_samebnp_step22":
         parset2=np.concatenate((parset[0:4],parset[4:5],parset[1:4],parset[5:6],parset[1:4],parset[6:8],parset[6:8],parset[6:8],parset[6:8],parset[6:8],parset[6:8]))
+    elif case=="difAD_samebnp_step33":
+        parset2=np.concatenate((parset[0:4],parset[0:1],parset[4:5],parset[2:4],parset[0:1],parset[5:6],parset[2:4],parset[6:8],parset[6:8],parset[6:8],parset[6:8],parset[6:8],parset[6:8]))
+    elif case=="difAD_samebnp_step1r1r":
+        parset2=np.concatenate((parset[0:4],parset[0:2],parset[4:5],parset[3:4],parset[0:2],parset[5:6],parset[3:4],parset[6:8],parset[6:8],parset[6:8],parset[6:8],parset[6:8],parset[6:8]))
     elif case=="sameAD_difbp":
         parset2=np.concatenate((parset[0:8],parset[4:8],parset[8:20]))
     elif case=="sameAD_difbp_kuonly":
@@ -87,6 +91,12 @@ def get_constraints_npars(case,fcd=0.01,fcu=100):
     elif case=="difAD_samebnp_step22":
         npars=8
         constraints={4:{'target':0,'fcd':1,'fcu':fcu},5:{'target':0,'fcd':1,'fcu':fcu}}
+    elif case=="difAD_samebnp_step33":
+        npars=8
+        constraints={4:{'target':1,'fcd':1,'fcu':fcu},5:{'target':1,'fcd':1,'fcu':fcu}}
+    elif case=="difAD_samebnp_step1r1r":
+        npars=8
+        constraints={4:{'target':2,'fcd':fcd,'fcu':1},5:{'target':2,'fcd':fcd,'fcu':1}}
     elif case=="sameAD_difbp":
         npars=20
         constraints={4:{'target':0,'fcd':1,'fcu':fcu},5:{'target':1,'fcd':1,'fcu':fcu},6:{'target':2,'fcd':fcd,'fcu':1},7:{'target':3,'fcd':1,'fcu':fcu}}
