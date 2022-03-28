@@ -16,6 +16,10 @@ def return_fullparset(parset,case):
         parset2=np.concatenate((parset[0:4],parset[0:3],parset[4:5],parset[5:6],parset[1:4],parset[6:8],parset[6:8],parset[6:8],parset[6:8],parset[6:8],parset[6:8]))
     elif case=="difAD_samebnp_step13": #ni,an
         parset2=np.concatenate((parset[0:4],parset[0:3],parset[4:5],parset[0:1],parset[5:6],parset[2:4],parset[6:8],parset[6:8],parset[6:8],parset[6:8],parset[6:8],parset[6:8]))    
+    elif case=="difAD_samebnp_step42": #in,ia #4,2
+        parset2=np.concatenate((parset[0:4],parset[0:2],parset[4:5],parset[3:4],parset[5:6],parset[1:4],parset[6:8],parset[6:8],parset[6:8],parset[6:8],parset[6:8],parset[6:8]))    
+    elif case=="difAD_samebnp_step43": #in,an #4,3
+        parset2=np.concatenate((parset[0:4],parset[0:2],parset[4:5],parset[3:4],parset[0:1],parset[5:6],parset[2:4],parset[6:8],parset[6:8],parset[6:8],parset[6:8],parset[6:8],parset[6:8]))    
     elif case=="difAD_samebnp_step23":#ia,an
         parset2=np.concatenate((parset[0:4],parset[4:5],parset[1:4],parset[0:1],parset[5:6],parset[2:4],parset[6:8],parset[6:8],parset[6:8],parset[6:8],parset[6:8],parset[6:8]))    
     elif case=="difAD_samebnp_step11":
@@ -31,6 +35,14 @@ def return_fullparset(parset,case):
         parset2=np.concatenate((parset[0:8],parset[4:8],bindingar))
     elif case=="sameAD_difbnp":
         parset2=np.concatenate((parset[0:8],parset[4:8],parset[8:10],parset[8:10],parset[8:10],parset[10:12],parset[10:12],parset[10:12]))
+    elif case=="sameADk1k1_difbnp":#[ktia0,ktan0,ktin0,ktni0,ktniTF,kbA,kuA,kbB,kuB] #4+1+4=9 #in the paper, ktni is called k1, and ktin is called k4
+        parset2=np.concatenate((parset[0:4],parset[0:3],parset[4:5],parset[0:3],parset[4:5],parset[5:7],parset[5:7],parset[5:7],parset[7:9],parset[7:9],parset[7:9]))
+    elif case=="sameADk4k4_difbnp":#[ktia0,ktan0,ktin0,ktni0,ktinTF,kbA,kuA,kbB,kuB]#4+1+4=9
+        parset2=np.concatenate((parset[0:4],parset[0:2],parset[4:5],parset[3:4],parset[0:2],parset[4:5],parset[3:4],parset[5:7],parset[5:7],parset[5:7],parset[7:9],parset[7:9],parset[7:9]))
+    elif case=="sameADk1k1_difbp":#[ktia0,ktan0,ktin0,ktni0,ktniTF,bindings...]#4+1+12=17
+        parset2=np.concatenate((parset[0:4],parset[0:3],parset[4:5],parset[0:3],parset[4:5],parset[5:]))
+    elif case=="sameADk4k4_difbp":#[ktia0,ktan0,ktin0,ktni0,ktinTF,bindings...]#4+1+12=17
+        parset2=np.concatenate((parset[0:4],parset[0:2],parset[4:5],parset[3:4],parset[0:2],parset[4:5],parset[3:4],parset[5:]))
     elif case=="empty":
          parset2=np.concatenate((parset[0:8],parset[0:4],parset[8:10],parset[8:10],parset[8:10],parset[8:10],parset[8:10],parset[8:10]))
     else:
@@ -58,6 +70,12 @@ def get_constraints_npars(case,fcd=0.01,fcu=100):
         npars=8
         constraints={4:{'target':3,'fcd':1,'fcu':fcu},5:{'target':1,'fcd':1,'fcu':fcu}}
         #parset2=np.concatenate((parset[0:4],parset[0:3],parset[4:5],parset[0:1],parset[5:6],parset[2:4],parset[6:8],parset[6:8],parset[6:8],parset[6:8],parset[6:8],parset[6:8]))
+    elif case=="difAD_samebnp_step42":#in,ia
+        npars=8
+        constraints={4:{'target':2,'fcd':fcd,'fcu':1},5:{'target':0,'fcd':1,'fcu':fcu}}
+    elif case=="difAD_samebnp_step43": #in,an
+        npars=8
+        constraints={4:{'target':2,'fcd':fcd,'fcu':1},5:{'target':1,'fcd':1,'fcu':fcu}}
     elif case=="difAD_samebnp_step23":#ia,an
         constraints={4:{'target':0,'fcd':1,'fcu':fcu},5:{'target':1,'fcd':1,'fcu':fcu}}
         npars=8
@@ -84,14 +102,28 @@ def get_constraints_npars(case,fcd=0.01,fcu=100):
         npars=12
         constraints={4:{'target':0,'fcd':1,'fcu':fcu},5:{'target':1,'fcd':1,'fcu':fcu},6:{'target':2,'fcd':fcd,'fcu':1},7:{'target':3,'fcd':1,'fcu':fcu}}
         #parset2=np.concatenate((parset[0:8],parset[4:8],parset[8:10],parset[8:10],parset[8:10],parset[10:12],parset[10:12],parset[10:12]))
+    elif case=="sameADk1k1_difbnp":#[ktia0,ktan0,ktin0,ktni0,ktniTF,kbA,kuA,kbB,kuB] #4+1+4=9 #in the paper, ktni is called k1, and ktin is called k4
+        npars=9
+        constraints={4:{'target':3,'fcd':1,'fcu':fcu}}
+    elif case=="sameADk4k4_difbnp":#[ktia0,ktan0,ktin0,ktni0,ktinTF,kbA,kuA,kbB,kuB]#4+1+4=9
+        npars=9
+        constraints={4:{'target':2, 'fcd':fcd, 'fcu':1}}
+    elif case=="sameADk1k1_difbp":#[ktia0,ktan0,ktin0,ktni0,ktniTF,bindings...]#4+1+12=17
+        npars=17
+        constraints={4:{'target':3,'fcd':1,'fcu':fcu}}
+    elif case=="sameADk4k4_difbp":#[ktia0,ktan0,ktin0,ktni0,ktinTF,bindings...]#4+1+12=17
+        npars=17
+        constraints={4:{'target':2, 'fcd':fcd, 'fcu':1}}
     elif case=="empty":
         npars=10
         constraints={4:{'target':0,'fcd':1,'fcu':fcu},5:{'target':1,'fcd':1,'fcu':fcu},6:{'target':2,'fcd':fcd,'fcu':1},7:{'target':3,'fcd':1,'fcu':fcu}} 
         #parset2=np.concatenate((parset[0:8],parset[0:4],parset[8:10],parset[8:10],parset[8:10],parset[8:10],parset[8:10],parset[8:10]))
+
     else:
         print("unrecognised case, ", case)
         raise ValueError
     return [constraints,npars]
+
 
 def check_constraints(allouts,fcu,fcd,gridspacing=0.025,nchoice=200,fGRF=None):
     """Checks if parameter sets from boundary search fulfill the constraints on:
