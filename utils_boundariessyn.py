@@ -197,9 +197,9 @@ def find_boundaryline(allouts):
             print(case, fc)
             #allashapes[case][base]=dict()
             #for fc in allpoints[case][base].keys():
-            if case=="difAD_samebnp_step12":
+            if case=="difAD_samebnp_step12" or case=="sameADk1k1_difbnp" or case=="sameADk4k4_difbnp":
                 alphalist=[50,10]
-                plistdf=allouts[case][fc][1]
+                plistdf=allouts[case][fc][1] 
             else:
                 alphalist=[1,0.5,0.1]
                 plistdf=allouts[case][fc][0][1]
