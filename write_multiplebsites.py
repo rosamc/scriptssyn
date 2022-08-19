@@ -131,6 +131,86 @@ def write_laplacian_py(L,alledges,folder="./",fname=None):
     outf.write("\n")
     outf.close()
 
+
+
+def get_edges_anysites_anyTFs(sites=1,nnodes_cycle=3,rev_cycle=[],TFnames=["A"]):
+    if len(TFnames)!=sites:
+        raise ValueError("Each TF must bind its own site. Executed with %d sites", TFnames)
+        
+    #will return laplacian and other variables needed to write the c code.
+    #it should work for any number of binding sites (each site - 1 TF), nodes in the cycle, and reversibility patterns
+    #rev_cycle=[] by default fully irreversible cycle. If for instance first transition is reversible, use [1]
+
+    bgraph_edges=get_bindinggraph_edges(sites)
+
+    print("binding graph:")
+    print(bgraph_edges)
+
+    alledges=merge_binding_withcycle(bgraph_edges,nnodes_cycle,rev_cycle=rev_cycle)
+    
+    sites_TF_dict=dict()
+    for t, TF in enumerate(TFnames):
+        sites_TF_dict[str(t+1)]=TF
+        
+    
+    for edge in alledges:
+        lab=edge[1]
+        if "a" in lab:
+            site=lab.split("_")[0][1:]
+            #if "a1" or in lab:
+            TF=sites_TF_dict[site]
+            edge[1]=lab.replace("-x","-%s"%TF)
+            
+    print("alledges:")
+    print(alledges)
+
+    nnodes=max([max([edge[0] for edge in alledges]),max([edge[2] for edge in alledges])])
+    L=get_laplacian_toprint(alledges,nnodes,TFnames=TFnames)
+    print("number of nodes:", nnodes)
+    parameter_last="k_%d"%nnodes_cycle
+
+    node_indices=[]
+    transitions=[]
+    for e,edge in enumerate(alledges):
+        par=edge[1]
+        if parameter_last in par:
+            print(edge)
+            node_indices.append(edge[0]-1)
+            transitions.append(e)
+    print(node_indices)
+    print(transitions)
+
+    pars=[]
+    for enum,edge in enumerate(alledges):
+        par=edge[1]
+        for TF in TFnames:
+            par=par.replace("-"+TF,"")
+        pars.append(par)
+    nnodes=0
+    for edge in alledges:
+        n0=int(edge[0])
+        n1=int(edge[2])
+        if n0>nnodes:
+            nnodes=n0
+        if n1>nnodes:
+            nnodes=n1
+    L_string=[]
+    for row in L:
+        L_string.append(list(map(str,row)))
+        
+    L_string=[]
+    L_string_new=[]
+    for row in L:
+        L_string.append(list(map(str,row)))
+        L_string_new.append(",".join(L_string[-1])+",\n")
+        #print("r",row)
+        #print(L_string[-1])
+        #print(L_string_new[-1])
+    #L_string is for backward compatibility with the write_pybind_module function initially used
+    return [pars,nnodes,L_string,L_string_new,node_indices,transitions,alledges]
+
+
+
 def write_pybind_module(fname,parnames,nnodes,TFnames,L,nbsites,indicesC=[None],coeffsC=[None],type="double"):
     if indicesC[0] is None:
         raise ValueError("Please specify the node indices that contribute to the steady state value.")
@@ -462,10 +542,10 @@ Matrix<T, Dynamic, 1> getOneDimNullspaceFromSVD(const Ref<const Matrix<T, Dynami
     double *vars=(double *) varsarbuf.ptr;
     """)
     for t,TF in enumerate(TFnames):
-        outf.write("    InternalType %s=vars[%d];\n"%(TF,t))
+        outf.write("    long double %s=vars[%d];\n"%(TF,t))
 
     for p, par in enumerate(parnames):
-        outf.write("    InternalType %s=pars[%d];\n"%(par,p))
+        outf.write("    long double %s=pars[%d];\n"%(par,p))
     
     outf.write("    Matrix<InternalType, Dynamic, Dynamic> L = Matrix<InternalType, Dynamic, Dynamic>::Zero(%d, %d);\n"%(nnodes,nnodes))
     outf.write("    L<<")
@@ -538,9 +618,6 @@ py::array_t<double> interfacerhos(py::array_t<double> parsar, py::array_t<double
     m.def("interfacess", &interfacess, "A function which returns the ss output, where appropriate rhos are multiplied by rates.",
     py::arg("parsar"), py::arg("varvals"));\n}\n
     """)
-
-
-
 
 
 
